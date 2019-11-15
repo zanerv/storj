@@ -301,10 +301,14 @@ func (endpoint *Endpoint) validatePointer(ctx context.Context, pointer *pb.Point
 				return Error.New("empty order limit for piece")
 			}
 
+			// TODO: WIP#v3-2936 Do we have to verify the order limit here, they
+			// should be coming from SegmentID which has the orders and it's signed.
 			err := endpoint.orders.VerifyOrderLimitSignature(ctx, limit)
 			if err != nil {
 				return err
 			}
+
+			// TODO: WIP#v3-2936 IT'S HERE WERE WE HAVE TO CHECK THE SERIAL LIMIT
 
 			// expect that too much time has not passed between order limit creation and now
 			if time.Since(limit.OrderCreation) > endpoint.maxCommitInterval {

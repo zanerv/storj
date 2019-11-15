@@ -471,6 +471,8 @@ func createBucketID(projectID uuid.UUID, bucket []byte) []byte {
 // The method always return a gRPC status error so the caller can directly
 // return it to the client.
 func (endpoint *Endpoint) filterValidPieces(ctx context.Context, pointer *pb.Pointer, limits []*pb.OrderLimit) (err error) {
+	// TODO: WIP#v3-2936 CONTINUE HERE TO SEE if the vailation of the pice
+	// serial number once I will add it should be here.
 	defer mon.Task()(&ctx)(&err)
 
 	if pointer.Type != pb.Pointer_REMOTE {
@@ -514,6 +516,7 @@ func (endpoint *Endpoint) filterValidPieces(ctx context.Context, pointer *pb.Poi
 		}
 		signee := signing.SigneeFromPeerIdentity(peerID)
 
+		// TODO: WIP#v3-2936 This is the method which validates the hash
 		err = endpoint.validatePieceHash(ctx, piece, limits, signee)
 		if err != nil {
 			endpoint.log.Warn("Problem validating piece hash. Pieces removed from pointer", zap.Error(err))
@@ -1487,6 +1490,7 @@ func (endpoint *Endpoint) BeginSegment(ctx context.Context, req *pb.SegmentBegin
 	}
 
 	bucketID := createBucketID(keyInfo.ProjectID, streamID.Bucket)
+	// TODO: WIP#v3-2936 Here is where the addressed order limits are created for upload
 	rootPieceID, addressedLimits, piecePrivateKey, err := endpoint.orders.CreatePutOrderLimits(ctx, bucketID, nodes, streamID.ExpirationDate, maxPieceSize)
 	if err != nil {
 		return nil, rpcstatus.Error(rpcstatus.Internal, err.Error())
@@ -1575,16 +1579,25 @@ func (endpoint *Endpoint) CommitSegment(ctx context.Context, req *pb.SegmentComm
 		PieceHashesVerified: true,
 	}
 
+	// TODO: WIP#v3-2936 these orders are inviolated because are the ones signed
+	// so they cannot be modified by the uplink and they have to compared with the
+	// remote segment order limits in pointer
 	orderLimits := make([]*pb.OrderLimit, len(segmentID.OriginalOrderLimits))
 	for i, orderLimit := range segmentID.OriginalOrderLimits {
 		orderLimits[i] = orderLimit.Limit
 	}
 
+	// TODO: WIP#v3-2936 here is where the pointer is validated
 	err = endpoint.validatePointer(ctx, pointer, orderLimits)
 	if err != nil {
 		return nil, rpcstatus.Error(rpcstatus.InvalidArgument, err.Error())
 	}
 
+	// TODO: WIP#v3-2936 See if we need to have these 2 methods because
+	// pieces are in the pointer and the previous method validates them.
+
+	// TODO: WIP#v3-2936 this is the method that validate the pices so it should
+	// validate the remote piece hash
 	err = endpoint.filterValidPieces(ctx, pointer, orderLimits)
 	if err != nil {
 		return nil, err

@@ -410,6 +410,8 @@ func (endpoint *Endpoint) doUpload(stream uploadStream, requestLimit int) (err e
 				}
 			}
 
+			// TODO: WIP#v3-2936 This is the point where the signature is calculated
+			// to be returned to the uplink
 			storageNodeHash, err := signing.SignPieceHash(ctx, endpoint.signer, &pb.PieceHash{
 				PieceId:   limit.PieceId,
 				Hash:      calculatedHash,
