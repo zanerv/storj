@@ -292,13 +292,128 @@ func TestObserver_processSegment(t *testing.T) {
 }
 
 func TestObsever_analyzeProject(t *testing.T) {
+	t.Run("object skipped", func(t *testing.T) {
+		var (
+			bucketName  = fmt.Sprintf("analyzeBucket-%d", rand.Int())
+			objPath     = storj.Path(fmt.Sprintf("analyzePath-%d", rand.Int()))
+			bucketsObjs = bucketsObjects{
+				bucketName: map[storj.Path]*object{
+					objPath: {
+						segments:                 bitmask(3),
+						hasLastSegment:           true,
+						expectedNumberOfSegments: 2,
+						skip:                     true,
+					},
+				},
+			}
+
+			buf   = &bytes.Buffer{}
+			obsvr = observer{
+				db:      teststore.New(),
+				writer:  csv.NewWriter(buf),
+				objects: bucketsObjs,
+			}
+		)
+
+		ctx := testcontext.New(t)
+		defer ctx.Cleanup()
+
+		err := obsvr.analyzeProject(ctx.Context)
+		require.NoError(t, err)
+
+		// TODO: Add assertions for buf content
+	})
+
+	t.Run("object valid with uncrypted number of segments", func(t *testing.T) {
+		var (
+			bucketName  = fmt.Sprintf("analyzeBucket-%d", rand.Int())
+			objPath     = storj.Path(fmt.Sprintf("analyzePath-%d", rand.Int()))
+			bucketsObjs bucketsObjects
+		)
+		{ // Generate an object
+			var segments bitmask
+			{
+				numSegments := rand.Intn(62) + 1
+				segments = math.MaxUint64 >> numSegments
+			}
+
+			bucketsObjs = bucketsObjects{
+				bucketName: map[storj.Path]*object{
+					objPath: {
+						segments:                 segments,
+						hasLastSegment:           true,
+						expectedNumberOfSegments: byte(segments.Count()),
+					},
+				},
+			}
+		}
+
+		var (
+			buf   = &bytes.Buffer{}
+			obsvr = observer{
+				db:      teststore.New(),
+				writer:  csv.NewWriter(buf),
+				objects: bucketsObjs,
+			}
+		)
+
+		ctx := testcontext.New(t)
+		defer ctx.Cleanup()
+
+		err := obsvr.analyzeProject(ctx.Context)
+		require.NoError(t, err)
+
+		// TODO: Add assertions for buf content
+	})
+
+	t.Run("object valid without unencrypted number of segments", func(t *testing.T) {
+		var (
+			bucketName  = fmt.Sprintf("analyzeBucket-%d", rand.Int())
+			objPath     = storj.Path(fmt.Sprintf("analyzePath-%d", rand.Int()))
+			bucketsObjs bucketsObjects
+		)
+		{ // Generate an object
+			var segments bitmask
+			{
+				numSegments := rand.Intn(62) + 1
+				segments = math.MaxUint64 >> numSegments
+			}
+
+			bucketsObjs = bucketsObjects{
+				bucketName: map[storj.Path]*object{
+					objPath: {
+						segments:       segments,
+						hasLastSegment: true,
+					},
+				},
+			}
+		}
+
+		var (
+			buf   = &bytes.Buffer{}
+			obsvr = observer{
+				db:      teststore.New(),
+				writer:  csv.NewWriter(buf),
+				objects: bucketsObjs,
+			}
+		)
+
+		ctx := testcontext.New(t)
+		defer ctx.Cleanup()
+
+		err := obsvr.analyzeProject(ctx.Context)
+		require.NoError(t, err)
+
+		// TODO: Add assertions for buf content
+	})
+
 	t.Run("object without last segment", func(t *testing.T) {
-		var bucketsObjs bucketsObjects
+		var (
+			bucketName  = fmt.Sprintf("analyzeBucket-%d", rand.Int())
+			objPath     = storj.Path(fmt.Sprintf("analyzePath-%d", rand.Int()))
+			bucketsObjs bucketsObjects
+		)
 		{ // Generate an objects without last segment
-			const (
-				bucketName = "analyzeBucket"
-				objPath    = storj.Path("analyzePath")
-			)
 			var segments bitmask
 			{
 				numSegments := rand.Intn(62) + 1
@@ -333,13 +448,13 @@ func TestObsever_analyzeProject(t *testing.T) {
 		// TODO: Add assertions for buf content
 	})
 
-	t.Run("object with non sequenced segments", func(t *testing.T) {
-		var bucketsObjs bucketsObjects
-		{ // Generate an objects without last segment
-			const (
-				bucketName = "analyzeBucket"
-				objPath    = storj.Path("analyzePath")
-			)
+	t.Run("object with non sequenced segments and unencrypted number of segments", func(t *testing.T) {
+		var (
+			bucketName  = fmt.Sprintf("analyzeBucket-%d", rand.Int())
+			objPath     = storj.Path(fmt.Sprintf("analyzePath-%d", rand.Int()))
+			bucketsObjs bucketsObjects
+		)
+		{ // Generate an objects without aligned segments
 			var segments bitmask
 			{ // Calculate a unaligned number of segments
 				unaligned := rand.Uint64()
@@ -358,6 +473,71 @@ func TestObsever_analyzeProject(t *testing.T) {
 
 					segments = bitmask(unaligned)
 					break
+				}
+			}
+
+			bucketsObjs = bucketsObjects{
+				bucketName: map[storj.Path]*object{
+					objPath: {
+						segments:                 segments,
+						hasLastSegment:           true,
+						expectedNumberOfSegments: byte(segments.Count()),
+					},
+				},
+			}
+		}
+
+		var (
+			buf   = &bytes.Buffer{}
+			obsvr = observer{
+				db:      teststore.New(),
+				writer:  csv.NewWriter(buf),
+				objects: bucketsObjs,
+			}
+		)
+
+		ctx := testcontext.New(t)
+		defer ctx.Cleanup()
+
+		err := obsvr.analyzeProject(ctx.Context)
+		require.NoError(t, err)
+
+		// TODO: Add assertions for buf content
+	})
+
+	t.Run("object with non sequenced segments and without unencrypted number of segments", func(t *testing.T) {
+		var (
+			bucketName  = fmt.Sprintf("analyzeBucket-%d", rand.Int())
+			objPath     = storj.Path(fmt.Sprintf("analyzePath-%d", rand.Int()))
+			bucketsObjs bucketsObjects
+		)
+		{ // Generate an objects without aligned segments
+			var (
+				segments                bitmask
+				expectedSegmentsToPrint bitmask
+			)
+			{ // Calculate a unaligned number of segments with first segments aligned
+				firstNumSegments := rand.Intn(32) + 1
+				for i := 0; i < firstNumSegments; i++ {
+					err := segments.Set(i)
+					require.NoError(t, err)
+				}
+
+				// Set some random segments after the initial aligned sequence leaving
+				// one segment between them unset
+				for i := firstNumSegments + 1; i < 64; i++ {
+					if rand.Int()%2 == 0 {
+						err := segments.Set(i)
+						require.NoError(t, err)
+						err = expectedSegmentsToPrint.Set(i)
+						require.NoError(t, err)
+					}
+
+					// There wasn't any segment set until the last iteration so iterate
+					// again
+					if i == 63 && expectedSegmentsToPrint.Count() == 0 {
+						i = firstNumSegments
+					}
 				}
 			}
 
@@ -390,12 +570,12 @@ func TestObsever_analyzeProject(t *testing.T) {
 	})
 
 	t.Run("object with unencrypted segments with different stored number", func(t *testing.T) {
-		var bucketsObjs bucketsObjects
-		{ // Generate an object
-			const (
-				bucketName = "analyzeBucket"
-				objPath    = storj.Path("analyzePath")
-			)
+		var (
+			bucketName  = fmt.Sprintf("analyzeBucket-%d", rand.Int())
+			objPath     = storj.Path(fmt.Sprintf("analyzePath-%d", rand.Int()))
+			bucketsObjs bucketsObjects
+		)
+		{ // Generate an object with differnt uncrypted number of segments
 			var (
 				segments           bitmask
 				invalidNumSegments byte
@@ -418,7 +598,7 @@ func TestObsever_analyzeProject(t *testing.T) {
 					objPath: {
 						segments:                 segments,
 						expectedNumberOfSegments: invalidNumSegments,
-						hasLastSegment:           false,
+						hasLastSegment:           true,
 					},
 				},
 			}
