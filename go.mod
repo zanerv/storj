@@ -46,3 +46,5 @@ require (
 	storj.io/private v0.0.0-20200427160924-e00b0e612cfb
 	storj.io/uplink v1.0.5-0.20200428120514-235330485c11
 )
+
+replace storj.io/private => /Users/ethan/workspace/github/private
