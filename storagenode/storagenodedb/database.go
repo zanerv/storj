@@ -33,7 +33,6 @@ import (
 	"storj.io/storj/storagenode/pricing"
 	"storj.io/storj/storagenode/reputation"
 	"storj.io/storj/storagenode/satellites"
-	"storj.io/storj/storagenode/secret"
 	"storj.io/storj/storagenode/storageusage"
 )
 
@@ -107,7 +106,6 @@ type DB struct {
 	notificationsDB   *notificationDB
 	payoutDB          *payoutDB
 	pricingDB         *pricingDB
-	secretDB          *secretDB
 
 	SQLDBs map[string]DBContainer
 }
@@ -134,7 +132,6 @@ func New(log *zap.Logger, config Config) (*DB, error) {
 	notificationsDB := &notificationDB{}
 	payoutDB := &payoutDB{}
 	pricingDB := &pricingDB{}
-	secretDB := &secretDB{}
 
 	db := &DB{
 		log:    log,
@@ -157,7 +154,6 @@ func New(log *zap.Logger, config Config) (*DB, error) {
 		notificationsDB:   notificationsDB,
 		payoutDB:          payoutDB,
 		pricingDB:         pricingDB,
-		secretDB:          secretDB,
 
 		SQLDBs: map[string]DBContainer{
 			DeprecatedInfoDBName:  deprecatedInfoDB,
@@ -173,7 +169,6 @@ func New(log *zap.Logger, config Config) (*DB, error) {
 			NotificationsDBName:   notificationsDB,
 			HeldAmountDBName:      payoutDB,
 			PricingDBName:         pricingDB,
-			SecretDBName:          secretDB,
 		},
 	}
 
@@ -202,7 +197,6 @@ func Open(log *zap.Logger, config Config) (*DB, error) {
 	notificationsDB := &notificationDB{}
 	payoutDB := &payoutDB{}
 	pricingDB := &pricingDB{}
-	secretDB := &secretDB{}
 
 	db := &DB{
 		log:    log,
@@ -225,7 +219,6 @@ func Open(log *zap.Logger, config Config) (*DB, error) {
 		notificationsDB:   notificationsDB,
 		payoutDB:          payoutDB,
 		pricingDB:         pricingDB,
-		secretDB:          secretDB,
 
 		SQLDBs: map[string]DBContainer{
 			DeprecatedInfoDBName:  deprecatedInfoDB,
@@ -241,7 +234,6 @@ func Open(log *zap.Logger, config Config) (*DB, error) {
 			NotificationsDBName:   notificationsDB,
 			HeldAmountDBName:      payoutDB,
 			PricingDBName:         pricingDB,
-			SecretDBName:          secretDB,
 		},
 	}
 
@@ -274,7 +266,6 @@ func (db *DB) openDatabases() error {
 		NotificationsDBName,
 		HeldAmountDBName,
 		PricingDBName,
-		SecretDBName,
 	}
 
 	for _, dbName := range dbs {
@@ -533,11 +524,6 @@ func (db *DB) Payout() payout.DB {
 // Pricing returns instance of the Pricing database.
 func (db *DB) Pricing() pricing.DB {
 	return db.pricingDB
-}
-
-// Secret returns instance of the Secret database.
-func (db *DB) Secret() secret.DB {
-	return db.secretDB
 }
 
 // RawDatabases are required for testing purposes.
@@ -1802,25 +1788,6 @@ func (db *DB) Migration(ctx context.Context) *migrate.Migration {
 
 					return nil
 				}),
-			},
-			{
-				DB:          &db.secretDB.DB,
-				Description: "Create secret table",
-				Version:     46,
-				CreateDB: func(ctx context.Context, log *zap.Logger) error {
-					if err := db.openDatabase(SecretDBName); err != nil {
-						return ErrDatabase.Wrap(err)
-					}
-
-					return nil
-				},
-				Action: migrate.SQL{
-					`CREATE TABLE secret (
-						token bytea NOT NULL,
-						created_at timestamp with time zone NOT NULL,
-						PRIMARY KEY ( token )
-					);`,
-				},
 			},
 		},
 	}

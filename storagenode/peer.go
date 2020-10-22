@@ -53,7 +53,6 @@ import (
 	"storj.io/storj/storagenode/reputation"
 	"storj.io/storj/storagenode/retain"
 	"storj.io/storj/storagenode/satellites"
-	"storj.io/storj/storagenode/secret"
 	"storj.io/storj/storagenode/storagenodedb"
 	"storj.io/storj/storagenode/storageusage"
 	"storj.io/storj/storagenode/trust"
@@ -86,7 +85,6 @@ type DB interface {
 	Notifications() notifications.DB
 	Payout() payout.DB
 	Pricing() pricing.DB
-	Secret() secret.DB
 
 	Preflight(ctx context.Context) error
 }
