@@ -46,7 +46,7 @@ func TestSerialNumbers(t *testing.T) {
 		require.True(t, orders.ErrUsingSerialNumber.Has(err))
 		require.Empty(t, bucketID)
 
-		deleted, err := ordersDB.DeleteExpiredSerials(ctx, time.Now())
+		deleted, err := ordersDB.DeleteExpiredSerials(ctx, time.Now(), nil)
 		require.NoError(t, err)
 		require.Equal(t, deleted, 1)
 

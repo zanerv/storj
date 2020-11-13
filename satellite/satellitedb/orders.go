@@ -18,6 +18,7 @@ import (
 	"storj.io/common/uuid"
 	"storj.io/storj/private/dbutil"
 	"storj.io/storj/private/dbutil/pgutil"
+	"storj.io/storj/private/dbutil/pgutil/pgerrcode"
 	"storj.io/storj/private/tagsql"
 	"storj.io/storj/satellite/orders"
 	"storj.io/storj/satellite/satellitedb/dbx"
@@ -59,8 +60,51 @@ func (db *ordersDB) CreateSerialInfo(ctx context.Context, serialNumber storj.Ser
 }
 
 // DeleteExpiredSerials deletes all expired serials in serial_number and used_serials table.
-func (db *ordersDB) DeleteExpiredSerials(ctx context.Context, now time.Time) (_ int, err error) {
+func (db *ordersDB) DeleteExpiredSerials(ctx context.Context, now time.Time, options *orders.SerialDeleteOptions) (_ int, err error) {
 	defer mon.Task()(&ctx)(&err)
+
+	if db.db.implementation == dbutil.Cockroach && options != nil {
+		var count int64
+		var timeouts int
+		for {
+			start := time.Now()
+			isTimeout := false
+			r, err := db.db.Exec(ctx, "SET statement_timeout=%d; DELETE FROM serial_numbers WHERE serial_numbers.expires_at < now() LIMIT %d", options.Timeout, options.Limit)
+			if err != nil {
+				return 0, err
+			}
+			c, err := r.RowsAffected()
+			if err != nil {
+				code := pgerrcode.FromError(err)
+				if code != "57014" {
+					return int(c), err
+				}
+				isTimeout = true
+				timeouts++
+			}
+
+			if timeouts > options.TimeoutCount {
+				db.db.log.Info("EEEE: hit delete timeout count threshold")
+				return int(count), nil
+			}
+
+			if !isTimeout {
+				// reset timeout count
+				timeouts = 0
+			}
+
+			db.db.log.Info("EEEE: deleted serial numbers", zap.Int64("timeout", options.Timeout),
+				zap.Int64("limit", options.Limit), zap.Int64("deleted", c), zap.Duration("ms", time.Now().Sub(start)))
+
+			if !isTimeout && c < options.Limit {
+				db.db.log.Info("EEEE: deleted less than limit", zap.Int64("limit", options.Limit))
+
+				break
+			}
+			count += c
+		}
+		return int(count), err
+	}
 
 	count, err := db.db.Delete_SerialNumber_By_ExpiresAt_LessOrEqual(ctx, dbx.SerialNumber_ExpiresAt(now.UTC()))
 	if err != nil {
