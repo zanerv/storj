@@ -7,6 +7,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"reflect"
 	"time"
 
@@ -69,7 +70,7 @@ func (db *ordersDB) DeleteExpiredSerials(ctx context.Context, now time.Time, opt
 		for {
 			start := time.Now()
 			isTimeout := false
-			r, err := db.db.Exec(ctx, "SET statement_timeout=%d; DELETE FROM serial_numbers WHERE serial_numbers.expires_at < now() LIMIT %d", options.Timeout, options.Limit)
+			r, err := db.db.Exec(ctx, fmt.Sprintf("SET statement_timeout=%d; DELETE FROM serial_numbers WHERE serial_numbers.expires_at < now() LIMIT %d", options.Timeout, options.Limit))
 			if err != nil {
 				return 0, err
 			}
