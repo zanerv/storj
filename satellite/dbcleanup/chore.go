@@ -25,6 +25,7 @@ var (
 // Config defines configuration struct for dbcleanup chore.
 type Config struct {
 	SerialsInterval           time.Duration `help:"how often to delete expired serial numbers" default:"4h"`
+	SerialsDeleteEnabled      bool          `help:"xxx" default:"true"`
 	SerialsDeleteTimeout      int64         `help:"xxx" default:"5000"`
 	SerialsDeleteTimeoutCount int           `help:"xxx" default:"5"`
 	SerialsDeleteLimit        int64         `help:"xxx" default:"1000"`
@@ -38,7 +39,7 @@ type Chore struct {
 	orders orders.DB
 
 	Serials *sync2.Cycle
-	Config  Config
+	config  Config
 }
 
 // NewChore creates new chore for deleting DB entries.
@@ -47,14 +48,14 @@ func NewChore(log *zap.Logger, orders orders.DB, config Config) *Chore {
 		log:    log,
 		orders: orders,
 
-		Config: config,
+		config: config,
 	}
 }
 
 // Run starts the db cleanup chore.
 func (chore *Chore) Run(ctx context.Context) (err error) {
 	defer mon.Task()(&ctx)(&err)
-	return chore.Serials.Run(ctx, chore.config.deleteExpiredSerials)
+	return chore.Serials.Run(ctx, chore.deleteExpiredSerials)
 }
 
 func (chore *Chore) deleteExpiredSerials(ctx context.Context) (err error) {
@@ -64,8 +65,8 @@ func (chore *Chore) deleteExpiredSerials(ctx context.Context) (err error) {
 	now := time.Now()
 
 	var options *orders.SerialDeleteOptions
-	if chore.SerialsDeleteEnabled {
-		options = orders.SerialDeleteOptions{
+	if chore.config.SerialsDeleteEnabled {
+		options = &orders.SerialDeleteOptions{
 			Timeout:      chore.config.SerialsDeleteTimeout,
 			TimeoutCount: chore.config.SerialsDeleteTimeoutCount,
 			Limit:        chore.config.SerialsDeleteLimit,

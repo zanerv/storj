@@ -82,7 +82,7 @@ func (db *ordersDB) DeleteExpiredSerials(ctx context.Context, now time.Time, opt
 			}
 			c, err := r.RowsAffected()
 			if err != nil {
-				eturn int(c), err
+				return int(c), err
 			}
 
 			if timeouts > options.TimeoutCount {
