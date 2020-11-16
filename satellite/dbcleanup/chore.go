@@ -26,7 +26,7 @@ var (
 type Config struct {
 	SerialsInterval           time.Duration `help:"how often to delete expired serial numbers" default:"4h"`
 	SerialsDeleteEnabled      bool          `help:"xxx" default:"true"`
-	SerialsDeleteTimeout      int64         `help:"xxx" default:"5000"`
+	SerialsDeleteTimeout      int64         `help:"xxx" default:"20000"`
 	SerialsDeleteTimeoutCount int           `help:"xxx" default:"5"`
 	SerialsDeleteLimit        int64         `help:"xxx" default:"1000"`
 }
@@ -48,7 +48,8 @@ func NewChore(log *zap.Logger, orders orders.DB, config Config) *Chore {
 		log:    log,
 		orders: orders,
 
-		config: config,
+		Serials: sync2.NewCycle(config.SerialsInterval),
+		config:  config,
 	}
 }
 

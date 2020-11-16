@@ -69,7 +69,7 @@ func (db *ordersDB) DeleteExpiredSerials(ctx context.Context, now time.Time, opt
 		var timeouts int
 		for {
 			start := time.Now()
-			isTimeout := false
+
 			r, err := db.db.Exec(ctx, fmt.Sprintf("SET statement_timeout=%d; DELETE FROM serial_numbers WHERE serial_numbers.expires_at < now() LIMIT %d", options.Timeout, options.Limit))
 			if err != nil {
 				code := pgerrcode.FromError(err)
@@ -77,32 +77,32 @@ func (db *ordersDB) DeleteExpiredSerials(ctx context.Context, now time.Time, opt
 				if code != "57014" {
 					return 0, err
 				}
-				isTimeout = true
 				timeouts++
+
+				if timeouts > options.TimeoutCount {
+					db.db.log.Info("EEEE: hit delete timeout count threshold")
+					return 0, nil
+				}
+
+				continue
 			}
 			c, err := r.RowsAffected()
 			if err != nil {
 				return int(c), err
 			}
 
-			if timeouts > options.TimeoutCount {
-				db.db.log.Info("EEEE: hit delete timeout count threshold")
-				return int(count), nil
-			}
+			// reset timeout count
+			timeouts = 0
 
-			if !isTimeout {
-				// reset timeout count
-				timeouts = 0
+			if c < options.Limit {
+				db.db.log.Info("EEEE: deleted less than limit", zap.Int64("limit", options.Limit))
+
+				break
 			}
 
 			db.db.log.Info("EEEE: deleted serial numbers", zap.Int64("timeout", options.Timeout),
 				zap.Int64("limit", options.Limit), zap.Int64("deleted", c), zap.Duration("duration", time.Now().Sub(start)))
 
-			if !isTimeout && c < options.Limit {
-				db.db.log.Info("EEEE: deleted less than limit", zap.Int64("limit", options.Limit))
-
-				break
-			}
 			count += c
 		}
 		return int(count), err
