@@ -36,5 +36,9 @@ func (client *client) pingNode(ctx context.Context, req *pb.ContactPingRequest) 
 
 // Close closes the connection.
 func (client *client) Close() error {
+	if client == nil {
+		return nil
+	}
+
 	return client.conn.Close()
 }

@@ -16,6 +16,7 @@ import (
 	"storj.io/common/rpc"
 	"storj.io/common/rpc/rpcstatus"
 	"storj.io/common/storj"
+	"storj.io/storj/pkg/quic"
 	"storj.io/storj/satellite/overlay"
 )
 
@@ -104,7 +105,19 @@ func (service *Service) PingBack(ctx context.Context, nodeurl storj.NodeURL) (_ 
 			zap.Stringer("Node ID", nodeurl.ID),
 			zap.String("pingErrorMessage", pingErrorMessage),
 		)
+
+		return pingNodeSuccess, pingErrorMessage, nil
 	}
+
+	// ping node's udp port
+	udpDialer := service.dialer
+	udpDialer.Connector = quic.NewDefaultConnector(nil)
+	udpClient, err := dialNodeURL(ctx, udpDialer, nodeurl)
+	if err != nil {
+		mon.Event("failed_dial_udp")
+		pingErrorMessage = fmt.Sprintf("can't connect to storage node through udp, your node indicated error: %q", err)
+	}
+	err = errs.Combine(err, udpClient.Close())
 
 	return pingNodeSuccess, pingErrorMessage, nil
 }
