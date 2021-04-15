@@ -12,7 +12,6 @@ import (
 
 	"storj.io/common/uuid"
 	"storj.io/storj/private/dbutil"
-	"storj.io/storj/private/dbutil/pgutil"
 	"storj.io/storj/private/tagsql"
 )
 
@@ -126,43 +125,32 @@ func (db *DB) deleteExpiredObjects(ctx context.Context, expiredObjects []expired
 		return nil
 	}
 
-	projectIds := make([]uuid.UUID, len(expiredObjects))
-	buckets := make([][]byte, len(expiredObjects))
-	objectKeys := make([][]byte, len(expiredObjects))
-	versions := make([]int32, len(expiredObjects))
-
-	for i, object := range expiredObjects {
-		projectIds[i] = object.projectID
-		buckets[i] = []byte(object.bucketName)
-		objectKeys[i] = []byte(object.objectKey)
-		versions[i] = int32(object.version)
-	}
-	query := `
+	// TODO workaround until https://github.com/cockroachdb/cockroach/issues/43198 is resolved.
+	for _, object := range expiredObjects {
+		query := `
 		WITH deleted_objects AS (
 			DELETE FROM objects
-			WHERE
-				(project_id, bucket_name, object_key, version) IN (
-					SELECT
-						unnest($1::BYTEA[]),
-						unnest($2::BYTEA[]),
-						unnest($3::BYTEA[]),
-						unnest($4::INT4[])
-				)
+			WHERE project_id = $1
+			  AND bucket_name = $2
+			  AND object_key = $3
+			  AND version = $4
 			RETURNING stream_id
 		)
 		DELETE FROM segments
-		WHERE segments.stream_id IN (SELECT deleted_objects.stream_id FROM deleted_objects)
+		WHERE segments.stream_id IN (SELECT deleted_objects.stream_id FROM deleted_objects);
 	`
-	_, err = db.db.ExecContext(ctx,
-		query,
-		pgutil.UUIDArray(projectIds),
-		pgutil.ByteaArray(buckets),
-		pgutil.ByteaArray(objectKeys),
-		pgutil.Int4Array(versions),
-	)
+		_, err = db.db.ExecContext(ctx,
+			query,
+			object.projectID,
+			[]byte(object.bucketName),
+			[]byte(object.objectKey),
+			int32(object.version),
+		)
 
-	if err != nil {
-		return Error.New("unable to delete expired objects: %w", err)
+		if err != nil {
+			return Error.New("unable to delete expired objects: %w", err)
+		}
 	}
+
 	return nil
 }
