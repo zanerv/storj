@@ -2,9 +2,9 @@
 
 ## Implementation details
 
-This is a project based on the [Svelte](https://svelte.dev) [template for apps](https://github.com/sveltejs/template).
+This is a project based on the [Sveltekit](https://kit.svelte.dev).
 
-The project templated was converted to Typescript following the instructions on its README.
+The project is set up with Typescript.
 
 The Web App is currently straightforward as we specified that v1 would be.
 
@@ -25,20 +25,18 @@ Install the dependencies...
 npm install
 ```
 
-...then start [Rollup](https://rollupjs.org):
+...then run the development server with autoreload on changes
 
 ```bash
 npm run dev
 ```
 
-Navigate to [localhost:5000](http://localhost:5000). You should see your app running.
-
-By default, the server will only respond to requests from localhost. To allow connections from other computers, edit the `sirv` commands in package.json to include the option `--host 0.0.0.0`.
+Navigate to [localhost:3000](http://localhost:3000). You should see your app running.
 
 
 ## Building for production mode
 
-To create an optimised version of the app:
+To create an optimized version of the app:
 
 ```bash
 npm run build
