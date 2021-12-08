@@ -160,8 +160,6 @@ export default class DashboardArea extends Vue {
                 await this.$store.dispatch(PROJECTS_ACTIONS.CREATE_DEFAULT_PROJECT);
                 if (this.isNewOnbCLiFlow) {
                     await this.$router.push(RouteConfig.OnboardingTour.with(RouteConfig.OverviewStep).path);
-                } else {
-                    await this.$router.push(RouteConfig.OnboardingTour.with(RouteConfig.OldOverviewStep).path);
                 }
 
                 await this.$store.dispatch(APP_STATE_ACTIONS.CHANGE_STATE, AppState.LOADED);
